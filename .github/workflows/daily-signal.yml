@@ -1,10 +1,8 @@
 name: Daily Signals (Gold + BTC)
-
 on:
   schedule:
-    - cron: "30 22 * * *"   # weekdays 22:30 UTC (gold); BTC is 24/7 so also fine daily
+    - cron: "30 22 * * *"
   workflow_dispatch: {}
-
 jobs:
   signal:
     runs-on: ubuntu-latest
@@ -16,14 +14,21 @@ jobs:
         with: { python-version: "3.12" }
       - name: Install deps
         run: pip install -r requirements.txt
-
       - name: Fetch data (gold + BTC)
         run: |
           TO="$(date -u +%Y-%m-%d)"
           mkdir -p data
-          npx --yes dukascopy-node -i xauusd -from 2012-01-01 -to "$TO" -t d1 -f csv -v true
+
+          # Gold: 3 retries
+          for i in 1 2 3; do
+            echo "Gold fetch attempt $i..."
+            npx --yes dukascopy-node -i xauusd -from 2012-01-01 -to "$TO" -t d1 -f csv -v true && break
+            echo "Attempt $i failed, waiting 30s..."
+            sleep 30
+          done
           cp download/*xauusd*.csv data/xauusd-d1.csv
-          # BTC: dukascopy BTC is gappy; if it fails or is short, the step still won't crash the gold signal
+
+          # BTC: gappy data, failure ok
           npx --yes dukascopy-node -i btcusd -from 2016-01-01 -to "$TO" -t d1 -f csv -v true || true
           cp download/*btcusd*.csv data/btcusd-d1.csv || echo "BTC fetch skipped"
 
@@ -32,7 +37,6 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python daily.py gold data/xauusd-d1.csv --always
-
       - name: BTC signal -> Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
