@@ -2,7 +2,7 @@ name: Daily Signals (Gold + BTC)
 
 on:
   schedule:
-    - cron: "30 22 * * 1-5"   # weekdays 22:30 UTC (gold); BTC is 24/7 so also fine daily
+    - cron: "30 22 * * *"   # weekdays 22:30 UTC (gold); BTC is 24/7 so also fine daily
   workflow_dispatch: {}
 
 jobs:
